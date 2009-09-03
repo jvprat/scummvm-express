@@ -18,8 +18,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL: https://scummvm.svn.sourceforge.net/svnroot/scummvm/scummvm/trunk/engines/groovie/cursor.cpp $
- * $Id: cursor.cpp 43847 2009-08-31 02:04:24Z scott_t $
+ * $URL$
+ * $Id$
  *
  */
 
