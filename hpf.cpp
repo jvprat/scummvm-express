@@ -97,6 +97,7 @@ bool HpfArchive::open(const Common::String &filename) {
 	}
 
 	_filename = filename;
+	_members.clear();
 
 	// Read the number of contained files
 	uint32 numFiles = stream.readUint32LE();
