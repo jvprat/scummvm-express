@@ -35,8 +35,6 @@
 
 namespace Express {
 
-// Cursor Manager
-
 ExpressCursorMan::ExpressCursorMan(OSystem *system, Common::Archive *arc) :
 	_syst(system), _current(255), _data(NULL) {
 
@@ -61,6 +59,7 @@ void ExpressCursorMan::show(bool visible) {
 }
 
 void ExpressCursorMan::setStyle(uint8 style) {
+	assert (_data);
 	assert (style < MAX_CURSOR);
 	debugC(10, kExpressDebugCursor | kExpressDebugAll, "Express::Cursor: setting style: %d", style);
 
