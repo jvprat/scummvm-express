@@ -24,8 +24,10 @@
  */
 
 #include "engines/express/express.h"
-#include "engines/express/debug.h"
+#include "engines/express/bg.h"
 #include "engines/express/cursor.h"
+#include "engines/express/debug.h"
+#include "engines/express/snd.h"
 
 #include "common/events.h"
 #include "common/file.h"
@@ -55,14 +57,34 @@ Common::Error ExpressEngine::run() {
 		!_hpf.open(_gd->filesDescriptions[0].fileName)) {
 		return Common::kNoGameDataFoundError;
 	}
-	//_hpf.open("cd1.hpf");
-	//_hpf.open("cd2.hpf");
-	//_hpf.open("cd3.hpf");
+	
+	HpfArchive cd;
+	cd.open("cd1.hpf");
+	//cd.open("cd2.hpf");
+	//cd.open("cd3.hpf");
+
+	// Test Backgrounds
+	Common::ArchiveMemberList list;
+	int num = cd.listMatchingMembers(list, "*.BG");
+	warning("found %d files", num);
+	Common::ArchiveMemberList::iterator i = list.begin();
+	//for (; i != list.end(); i++) {
+		//warning("bg: %s", (*i)->getName().c_str());
+		//Common::SeekableReadStream *stream = (*i)->createReadStream();
+		//BackGround bg(stream);
+		//delete stream;
+	//}
 
 	ExpressCursorMan cur(_system, &_hpf);
 	uint8 st = 0;
 	cur.setStyle(st);
 	cur.show(true);
+
+	Common::SeekableReadStream *snd = _hpf.createReadStreamForMember("MUS018.SND");
+	Snd s(snd);
+	//int num = cd.listMatchingMembers(list, "*.SND");
+	//warning("found %d files", num);
+	//Common::ArchiveMemberList::iterator i = list.begin();
 
 	bool end = false;
 	Common::EventManager *em = _system->getEventManager();
@@ -76,8 +98,14 @@ Common::Error ExpressEngine::run() {
 					cur.setStyle(++st);
 				if (ev.kbd.keycode == Common::KEYCODE_MINUS)
 					cur.setStyle(--st);
-				//if (ev.kbd.keycode == Common::KEYCODE_RETURN)
-				//	test.next();
+				if (ev.kbd.keycode == Common::KEYCODE_RETURN) {
+					warning("bg: %s", (*i)->getName().c_str());
+					Common::SeekableReadStream *stream = (*i)->createReadStream();
+					BackGround bg(stream);
+					bg.show();
+					delete stream;
+					i++;
+				}
 			}
 		}
 		_system->updateScreen();

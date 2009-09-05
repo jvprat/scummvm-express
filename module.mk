@@ -1,10 +1,12 @@
 MODULE := engines/express
 
 MODULE_OBJS = \
+	bg.o \
 	cursor.o \
 	detection.o \
 	express.o \
-	hpf.o
+	hpf.o \
+	snd.o
 
 # This module can be built as a plugin
 ifeq ($(ENABLE_EXPRESS), DYNAMIC_PLUGIN)
