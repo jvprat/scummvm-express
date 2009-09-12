@@ -7,6 +7,7 @@ MODULE_OBJS = \
 	express.o \
 	font.o \
 	hpf.o \
+	sbe.o \
 	snd.o
 
 # This module can be built as a plugin
