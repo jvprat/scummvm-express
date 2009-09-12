@@ -5,6 +5,7 @@ MODULE_OBJS = \
 	cursor.o \
 	detection.o \
 	express.o \
+	font.o \
 	hpf.o \
 	snd.o
 
