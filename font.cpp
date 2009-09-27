@@ -74,7 +74,7 @@ void Font::drawChar(int x, int y, uint16 c) {
 
 void Font::drawString(int x, int y, Common::String str) {
 	int currentX = x;
-	for (int i = 0; i < str.size(); i++, currentX += 10) {
+	for (uint i = 0; i < str.size(); i++, currentX += 10) {
 		drawChar(currentX, y, str[i]);
 	}
 }
