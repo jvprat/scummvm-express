@@ -44,7 +44,7 @@ BackGround::~BackGround() {
 
 void BackGround::show(void) {
 	g_system->fillScreen(0);
-	g_system->copyRectToScreen(_data, _width * 3, _posX, _posY, _width, _height);
+	g_system->copyRectToScreen((byte *)_data, _width * 2, _posX, _posY, _width, _height);
 	g_system->updateScreen();
 }
 
@@ -94,15 +94,12 @@ bool BackGround::load(Common::SeekableReadStream *in) {
 	// Merge the components
 	reset();
 	if (ok) {
-		_data = new byte[numPix * 3];
+		_data = new uint16[numPix];
 		if (!_data) {
 			ok = false;
 		} else {
-			//TODO: use RGB555 (that's compression's precision)
 			for (uint i = 0; i < numPix; i++) {
-				_data[i * 3 + 0] = dataR[i];
-				_data[i * 3 + 1] = dataG[i];
-				_data[i * 3 + 2] = dataB[i];
+				_data[i] = (dataR[i] << 10) + (dataG[i] << 5) + dataB[i];
 			}
 		}
 	}
@@ -133,7 +130,7 @@ byte *BackGround::decodeComponent(Common::SeekableReadStream *in, uint32 inSize,
 		if (inByte < 0x80) {
 			// Direct decompression (RLE)
 			byte len = (inByte >> 5) + 1;
-			byte data = inByte << 3;
+			byte data = inByte & 0x1f;
 			for (int i = 0; i < len && outPos < outSize; i++)
 				out[outPos++] = data;
 		} else {

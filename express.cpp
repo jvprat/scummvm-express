@@ -51,8 +51,8 @@ Common::Error ExpressEngine::run() {
 	// Initialize backend
 	_system->beginGFXTransaction();
 	initCommonGFX(true);
-	_system->initSize(640, 480, new Graphics::PixelFormat(3, 8, 8, 8, 0, 0, 8, 16, 0));
-	//_system->initSize(640, 480, new Graphics::PixelFormat(2, 5, 5, 5, 0, 5, 5, 5, 0));
+	//_system->initSize(640, 480, new Graphics::PixelFormat(3, 8, 8, 8, 0, 0, 8, 16, 0));
+	_system->initSize(640, 480, new Graphics::PixelFormat(2, 5, 5, 5, 0, 10, 5, 0, 0));
 	_system->endGFXTransaction();
 
 	// Start the resource manager
@@ -67,10 +67,10 @@ Common::Error ExpressEngine::run() {
 	//cd.open("cd3.hpf");
 
 	// Test Backgrounds
-	Common::ArchiveMemberList list;
-	int num = cd.listMatchingMembers(list, "*.BG");
-	warning("found %d files", num);
-	Common::ArchiveMemberList::iterator i = list.begin();
+	Common::ArchiveMemberList list_bg;
+	int num_bg = cd.listMatchingMembers(list_bg, "*.BG");
+	warning("found %d bg's", num_bg);
+	Common::ArchiveMemberList::iterator i_bg = list_bg.begin();
 	//for (; i != list.end(); i++) {
 		//warning("bg: %s", (*i)->getName().c_str());
 		//Common::SeekableReadStream *stream = (*i)->createReadStream();
@@ -111,12 +111,12 @@ Common::Error ExpressEngine::run() {
 				if (ev.kbd.keycode == Common::KEYCODE_MINUS)
 					cur.setStyle(--st);
 				if (ev.kbd.keycode == Common::KEYCODE_RETURN) {
-					warning("bg: %s", (*i)->getName().c_str());
-					Common::SeekableReadStream *stream = (*i)->createReadStream();
+					warning("bg: %s", (*i_bg)->getName().c_str());
+					Common::SeekableReadStream *stream = (*i_bg)->createReadStream();
 					BackGround bg(stream);
 					bg.show();
 					delete stream;
-					i++;
+					i_bg++;
 				}
 			}
 		}

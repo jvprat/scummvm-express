@@ -46,7 +46,7 @@ private:
 	uint32 _width, _height;
 
 	// Image pixels
-	byte *_data;
+	uint16 *_data;
 };
 
 } // End of Express namespace
