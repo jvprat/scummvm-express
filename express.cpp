@@ -29,6 +29,7 @@
 #include "engines/express/debug.h"
 #include "engines/express/font.h"
 #include "engines/express/sbe.h"
+#include "engines/express/seq.h"
 #include "engines/express/snd.h"
 
 #include "common/events.h"
@@ -78,6 +79,11 @@ Common::Error ExpressEngine::run() {
 		//delete stream;
 	//}
 
+	Common::ArchiveMemberList list_seq;
+	int n_seq = cd.listMatchingMembers(list_seq, "*.SEQ");
+	warning("found %d seq's", n_seq);
+	Common::ArchiveMemberList::iterator i_seq = list_seq.begin();
+
 	ExpressCursorMan cur(_system, &_hpf);
 	uint8 st = 0;
 	cur.setStyle(st);
@@ -111,12 +117,23 @@ Common::Error ExpressEngine::run() {
 				if (ev.kbd.keycode == Common::KEYCODE_MINUS)
 					cur.setStyle(--st);
 				if (ev.kbd.keycode == Common::KEYCODE_RETURN) {
+					Common::SeekableReadStream *stream;
 					warning("bg: %s", (*i_bg)->getName().c_str());
-					Common::SeekableReadStream *stream = (*i_bg)->createReadStream();
-					BackGround bg(stream);
-					bg.show();
-					delete stream;
-					i_bg++;
+					stream = (*i_bg)->createReadStream();
+					if (stream) {
+						BackGround bg(stream);
+						bg.show();
+						delete stream;
+						i_bg++;
+					}
+
+					warning("seq: %s", (*i_seq)->getName().c_str());
+					stream = (*i_seq)->createReadStream();
+					if (stream) {
+						Seq seq(stream);
+						delete stream;
+						i_seq++;
+					}
 				}
 			}
 		}

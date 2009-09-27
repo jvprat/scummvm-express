@@ -8,6 +8,7 @@ MODULE_OBJS = \
 	font.o \
 	hpf.o \
 	sbe.o \
+	seq.o \
 	snd.o
 
 # This module can be built as a plugin
