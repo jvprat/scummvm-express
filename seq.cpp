@@ -32,6 +32,204 @@
 
 namespace Express {
 
+// AnimFrame
+
+AnimFrame::AnimFrame(Common::SeekableReadStream *in, FrameInfo *f) : _palette(NULL) {
+	_palSize = 1;
+	_image.create(640, 480, 1);
+
+	switch (f->compType) {
+	case 0:
+		// Empty frame
+		break;
+	case 3:
+		decomp3(in, f);
+		break;
+	case 4:
+		decomp4(in, f);
+		break;
+	case 5:
+		decomp5(in, f);
+		break;
+	case 7:
+		decomp7(in, f);
+		break;
+	default:
+		error("Unknown compression: %d", f->compType);
+	}
+
+	readPalette(in, f);
+}
+
+AnimFrame::~AnimFrame() {
+	_image.free();
+	delete[] _palette;
+}
+
+void AnimFrame::paint(Graphics::Surface *s) {
+	byte *inp = (byte *)_image.pixels;
+	uint16 *outp = (uint16 *)s->pixels;
+	for (int i = 0; i < 640 * 480; i++, inp++, outp++) {
+		if (*inp)
+			*outp = _palette[*inp];
+	}
+}
+
+void AnimFrame::readPalette(Common::SeekableReadStream *in, FrameInfo *f) {
+	// Read the palette
+	in->seek(f->palOffset);
+	_palette = new uint16[_palSize];
+	for (uint32 i = 0; i < _palSize; i++) {
+		_palette[i] = in->readUint16LE();
+	}
+}
+
+void AnimFrame::decomp3(Common::SeekableReadStream *in, FrameInfo *f) {
+	decomp34(in, f, 0x7, 3);
+}
+
+void AnimFrame::decomp4(Common::SeekableReadStream *in, FrameInfo *f) {
+	decomp34(in, f, 0xf, 4);
+}
+
+void AnimFrame::decomp34(Common::SeekableReadStream *in, FrameInfo *f, byte mask, byte shift) {
+	byte *p = (byte *)_image.getBasePtr(0, 0);
+
+	uint32 skip = f->initialSkip / 2;
+	uint32 size = f->decompSize / 2;
+	//warning("skip: %d, %d", skip % 640, skip / 640);
+	//warning("size: %d, %d", size % 640, size / 640);
+	//assert (f->yPos1 == skip / 640);
+	//assert (f->yPos2 == size / 640);
+
+	uint32 numBlanks = 640 - (f->xPos2 - f->xPos1);
+
+	in->seek(f->dataOffset);
+	for (uint32 out = skip; out < size; ) {
+		uint16 opcode = in->readByte();
+
+		if (opcode & 0x80) {
+			if (opcode & 0x40) {
+				opcode &= 0x3f;
+				out += numBlanks + opcode + 1;
+			} else {
+				opcode &= 0x3f;
+				if (opcode & 0x20) {
+					opcode = ((opcode & 0x1f) << 8) + in->readByte();
+					if (opcode & 0x1000) {
+						out += opcode & 0xfff;
+						continue;
+					}
+				}
+				out += opcode + 2;
+			}
+		} else {
+			byte value = opcode & mask;
+			opcode >>= shift;
+			if (_palSize <= value)
+				_palSize = value + 1;
+			if (!opcode)
+				opcode = in->readByte();
+			for (int i = 0; i < opcode; i++, out++) {
+				p[out] = value;
+			}
+		}
+	}
+}
+
+void AnimFrame::decomp5(Common::SeekableReadStream *in, FrameInfo *f) {
+	byte *p = (byte *)_image.getBasePtr(0, 0);
+
+	uint32 skip = f->initialSkip / 2;
+	uint32 size = f->decompSize / 2;
+	//warning("skip: %d, %d", skip % 640, skip / 640);
+	//warning("size: %d, %d", size % 640, size / 640);
+	//assert (f->yPos1 == skip / 640);
+	//assert (f->yPos2 == size / 640);
+
+	//uint32 numBlanks = 640 - (f->xPos2 - f->xPos1);
+
+	in->seek(f->dataOffset);
+	for (uint32 out = skip; out < size; ) {
+		uint16 opcode = in->readByte();
+		if (!(opcode & 0x1f)) {
+			opcode = (opcode << 3) + in->readByte();
+			if (opcode & 0x400) {
+				// skip these 10 bits
+				out += (opcode & 0x3ff);
+			} else {
+				out += opcode + 2;
+			}
+		} else {
+			byte value = opcode & 0x1f;
+			opcode >>= 5;
+			if (_palSize <= value)
+				_palSize = value + 1;
+			if (!opcode)
+				opcode = in->readByte();
+			for (int i = 0; i < opcode; i++, out++) {
+				p[out] = value;
+			}
+		}
+	}
+}
+
+void AnimFrame::decomp7(Common::SeekableReadStream *in, FrameInfo *f) {
+	byte *p = (byte *)_image.getBasePtr(0, 0);
+
+	uint32 skip = f->initialSkip / 2;
+	uint32 size = f->decompSize / 2;
+	//warning("skip: %d, %d", skip % 640, skip / 640);
+	//warning("size: %d, %d", size % 640, size / 640);
+	//assert (f->yPos1 == skip / 640);
+	//assert (f->yPos2 == size / 640);
+
+	uint32 numBlanks = 640 - (f->xPos2 - f->xPos1);
+
+	in->seek(f->dataOffset);
+	for (uint32 out = skip; out < size; ) {
+		uint16 opcode = in->readByte();
+		if (opcode & 0x80) {
+			if (opcode & 0x40) {
+				if (opcode & 0x20) {
+					opcode &= 0x1f;
+					out += numBlanks + opcode + 1;
+				} else {
+					opcode &= 0x1f;
+					if (opcode & 0x10) {
+						opcode = ((opcode & 0xf) << 8) + in->readByte();
+						if (opcode & 0x800) {
+							// skip these 11 bits
+							out += (opcode & 0x7ff);
+							continue;
+						}
+					}
+
+					// skip these 4 bits
+					out += opcode + 2;
+				}
+			} else {
+				opcode &= 0x3f;
+				byte value = in->readByte();
+				if (_palSize <= value)
+					_palSize = value + 1;
+				for (int i = 0; i < opcode; i++, out++) {
+					p[out] = value;
+				}
+			}
+		} else {
+			if (_palSize <= opcode)
+				_palSize = opcode + 1;
+			// set the given value
+			p[out] = opcode;
+			out++;
+		}
+	}
+}
+
+
+// Seq
+
 Seq::Seq(Common::SeekableReadStream *in) {
 	load(in);
 }
@@ -50,7 +248,7 @@ bool Seq::load(Common::SeekableReadStream *in) {
 	assert (unknown == 0);
 
 	for (uint n = 0; n < numFrames; n++) {
-		SeqFrame f;
+		FrameInfo f;
 		f.dataOffset = in->readUint32LE();
 		//warning("frame %d dataofs: 0x%04x %d", n, f.dataOffset, f.dataOffset);
 		unknown = in->readUint32LE();
@@ -91,261 +289,28 @@ bool Seq::load(Common::SeekableReadStream *in) {
 
 		_frames.push_back(f);
 	}
-	//warning("pos:%d", in->pos());
 
-	for (int i = 0; i < _frames.size(); i++) {
-		decodeFrame(in, i);
+	for (uint i = 0; i < _frames.size(); i++) {
+		warning("decoding frame %d", i);
+		AnimFrame *f = new AnimFrame(in, &_frames[i]);
+
+		//TEST: paint it directly to screen
+		//Graphics::Surface *s = g_system->lockScreen();
+		Graphics::Surface *s = new Graphics::Surface;
+		s->create(640, 480, 2);
+
+		f->paint(s);
+
+		g_system->copyRectToScreen((byte *)s->pixels, s->pitch, 0, 0, s->w, s->h);
+		s->free();
+		delete s;
+		//g_system->unlockScreen();
+		g_system->updateScreen();
+
+		delete f;
 	}
 
 	return true;
-}
-
-void Seq::decodeFrame(Common::SeekableReadStream *in, uint32 numFrame) {
-	warning("decoding frame %d", numFrame);
-
-	SeqFrame *f = &_frames[numFrame];
-	switch (f->compType) {
-	case 0:
-		// Empty frame
-		warning("COMP 0 Unimplemented");
-		break;
-	case 3:
-		//warning("COMP 3");
-		decomp3(in, f);
-		break;
-	case 4:
-		//warning("COMP 4");
-		decomp4(in, f);
-		break;
-	case 5:
-		//warning("COMP 5");
-		decomp5(in, f);
-		break;
-	case 7:
-		//warning("COMP 7");
-		decomp7(in, f);
-		break;
-	default:
-		error("COMP %d UNKNOWN", f->compType);
-	}
-}
-
-void Seq::decomp3(Common::SeekableReadStream *in, SeqFrame *f) {
-	decomp34(in, f, 0x7, 3);
-}
-
-void Seq::decomp4(Common::SeekableReadStream *in, SeqFrame *f) {
-	decomp34(in, f, 0xf, 4);
-}
-
-void Seq::decomp34(Common::SeekableReadStream *in, SeqFrame *f, byte mask, byte shift) {
-	uint palSize = 1;
-
-	Graphics::Surface *s = new Graphics::Surface;
-	s->create(640, 480, 1);
-	byte *p = (byte *)s->getBasePtr(0, 0);
-
-
-	uint32 skip = f->initialSkip / 2;
-	uint32 size = f->decompSize / 2;
-	//warning("skip: %d, %d", skip % 640, skip / 640);
-	//warning("size: %d, %d", size % 640, size / 640);
-	//assert (f->yPos1 == skip / 640);
-	//assert (f->yPos2 == size / 640);
-
-	uint32 numBlanks = 640 - (f->xPos2 - f->xPos1);
-
-	in->seek(f->dataOffset);
-	for (uint32 out = skip; out < size; ) {
-		uint16 opcode = in->readByte();
-
-		if (opcode & 0x80) {
-			if (opcode & 0x40) {
-				opcode &= 0x3f;
-				out += numBlanks + opcode + 1;
-			} else {
-				opcode &= 0x3f;
-				if (opcode & 0x20) {
-					opcode = ((opcode & 0x1f) << 8) + in->readByte();
-					if (opcode & 0x1000) {
-						out += opcode & 0xfff;
-						continue;
-					}
-				}
-				out += opcode + 2;
-			}
-		} else {
-			byte value = opcode & mask;
-			opcode >>= shift;
-			if (palSize <= value)
-				palSize = value + 1;
-			if (!opcode)
-				opcode = in->readByte();
-			for (int i = 0; i < opcode; i++, out++) {
-				p[out] = value;
-			}
-		}
-	}
-
-	//warning("in end pos: %d", in->pos());
-
-	Graphics::Surface *s2 = applyPalette(in, f, s, palSize);
-	s->free();
-	delete s;
-
-	g_system->copyRectToScreen((byte *)s2->pixels, s2->pitch, 0, 0, s2->w, s2->h);
-	g_system->updateScreen();
-
-	s2->free();
-	delete s2;
-}
-
-void Seq::decomp5(Common::SeekableReadStream *in, SeqFrame *f) {
-	uint palSize = 1;
-
-	Graphics::Surface *s = new Graphics::Surface;
-	s->create(640, 480, 1);
-	byte *p = (byte *)s->getBasePtr(0, 0);
-
-
-	uint32 skip = f->initialSkip / 2;
-	uint32 size = f->decompSize / 2;
-	//warning("skip: %d, %d", skip % 640, skip / 640);
-	//warning("size: %d, %d", size % 640, size / 640);
-	//assert (f->yPos1 == skip / 640);
-	//assert (f->yPos2 == size / 640);
-
-	uint32 numBlanks = 640 - (f->xPos2 - f->xPos1);
-
-	in->seek(f->dataOffset);
-	for (uint32 out = skip; out < size; ) {
-		uint16 opcode = in->readByte();
-		if (!(opcode & 0x1f)) {
-			opcode = (opcode << 3) + in->readByte();
-			if (opcode & 0x400) {
-				// skip these 10 bits
-				out += (opcode & 0x3ff);
-			} else {
-				out += opcode + 2;
-			}
-		} else {
-			byte value = opcode & 0x1f;
-			opcode >>= 5;
-			if (palSize <= value)
-				palSize = value + 1;
-			if (!opcode)
-				opcode = in->readByte();
-			for (int i = 0; i < opcode; i++, out++) {
-				p[out] = value;
-			}
-		}
-	}
-
-	//warning("in end pos: %d", in->pos());
-
-	Graphics::Surface *s2 = applyPalette(in, f, s, palSize);
-	s->free();
-	delete s;
-
-	g_system->copyRectToScreen((byte *)s2->pixels, s2->pitch, 0, 0, s2->w, s2->h);
-	g_system->updateScreen();
-
-	s2->free();
-	delete s2;
-}
-
-void Seq::decomp7(Common::SeekableReadStream *in, SeqFrame *f) {
-	uint palSize = 1;
-
-	Graphics::Surface *s = new Graphics::Surface;
-	s->create(640, 480, 1);
-	byte *p = (byte *)s->getBasePtr(0, 0);
-
-
-	uint32 skip = f->initialSkip / 2;
-	uint32 size = f->decompSize / 2;
-	//warning("skip: %d, %d", skip % 640, skip / 640);
-	//warning("size: %d, %d", size % 640, size / 640);
-	//assert (f->yPos1 == skip / 640);
-	//assert (f->yPos2 == size / 640);
-
-	uint32 numBlanks = 640 - (f->xPos2 - f->xPos1);
-
-	in->seek(f->dataOffset);
-	for (uint32 out = skip; out < size; ) {
-		uint16 opcode = in->readByte();
-		if (opcode & 0x80) {
-			if (opcode & 0x40) {
-				if (opcode & 0x20) {
-					opcode &= 0x1f;
-					out += numBlanks + opcode + 1;
-				} else {
-					opcode &= 0x1f;
-					if (opcode & 0x10) {
-						opcode = ((opcode & 0xf) << 8) + in->readByte();
-						if (opcode & 0x800) {
-							// skip these 11 bits
-							out += (opcode & 0x7ff);
-							continue;
-						}
-					}
-
-					// skip these 4 bits
-					out += opcode + 2;
-				}
-			} else {
-				opcode &= 0x3f;
-				byte value = in->readByte();
-				if (palSize <= value)
-					palSize = value + 1;
-				for (int i = 0; i < opcode; i++, out++) {
-					p[out] = value;
-				}
-			}
-		} else {
-			if (palSize <= opcode)
-				palSize = opcode + 1;
-			// set the given value
-			p[out] = opcode;
-			out++;
-		}
-	}
-
-	//warning("in end pos: %d", in->pos());
-
-	Graphics::Surface *s2 = applyPalette(in, f, s, palSize);
-	s->free();
-	delete s;
-
-	g_system->copyRectToScreen((byte *)s2->pixels, s2->pitch, 0, 0, s2->w, s2->h);
-	g_system->updateScreen();
-
-	s2->free();
-	delete s2;
-}
-
-Graphics::Surface *Seq::applyPalette(Common::SeekableReadStream *in, SeqFrame *f, Graphics::Surface *s, uint32 palSize) {
-	// Read the palette
-	in->seek(f->palOffset);
-	uint32 *pal = new uint32[palSize];
-	for (uint32 i = 0; i < palSize; i++) {
-		pal[i] = in->readUint16LE();
-	}
-
-	// Apply to the given image
-	Graphics::Surface *out = new Graphics::Surface;
-	out->create(640, 480, 2);
-
-	byte *inp = (byte *)s->pixels;
-	uint16 *outp = (uint16 *)out->pixels;
-	for (int i = 0; i < 640 * 480; i++, inp++, outp++) {
-		//TODO: 0 = transparent
-		*outp = pal[*inp];
-	}
-
-	delete pal;
-
-	return out;
 }
 
 } // End of Express namespace

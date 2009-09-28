@@ -32,7 +32,7 @@
 
 namespace Express {
 
-struct SeqFrame {
+struct FrameInfo {
 	uint32 dataOffset;
 	uint32 palOffset;
 	uint32 xPos1;
@@ -45,6 +45,25 @@ struct SeqFrame {
 	byte compType;
 };
 
+class AnimFrame {
+public:
+	AnimFrame(Common::SeekableReadStream *in, FrameInfo *f);
+	~AnimFrame();
+	void paint(Graphics::Surface *s);
+
+private:
+	void decomp3(Common::SeekableReadStream *in, FrameInfo *f);
+	void decomp4(Common::SeekableReadStream *in, FrameInfo *f);
+	void decomp34(Common::SeekableReadStream *in, FrameInfo *f, byte mask, byte shift);
+	void decomp5(Common::SeekableReadStream *in, FrameInfo *f);
+	void decomp7(Common::SeekableReadStream *in, FrameInfo *f);
+	void readPalette(Common::SeekableReadStream *in, FrameInfo *f);
+
+	Graphics::Surface _image;
+	uint16 _palSize;
+	uint16 *_palette;
+};
+
 class Seq {
 public:
 	Seq(Common::SeekableReadStream *in);
@@ -52,15 +71,9 @@ public:
 
 private:
 	bool load(Common::SeekableReadStream *in);
-	void decodeFrame(Common::SeekableReadStream *in, uint32 numFrame);
-	void decomp3(Common::SeekableReadStream *in, SeqFrame *f);
-	void decomp4(Common::SeekableReadStream *in, SeqFrame *f);
-	void decomp34(Common::SeekableReadStream *in, SeqFrame *f, byte mask, byte shift);
-	void decomp5(Common::SeekableReadStream *in, SeqFrame *f);
-	void decomp7(Common::SeekableReadStream *in, SeqFrame *f);
-	Graphics::Surface *applyPalette(Common::SeekableReadStream *in, SeqFrame *f, Graphics::Surface *s, uint32 palSize);
+	AnimFrame *decodeFrame(Common::SeekableReadStream *in, uint32 numFrame);
 
-	Common::Array<SeqFrame> _frames;
+	Common::Array<FrameInfo> _frames;
 };
 
 } // End of Express namespace
