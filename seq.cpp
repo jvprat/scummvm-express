@@ -32,6 +32,56 @@
 
 namespace Express {
 
+void FrameInfo::read(Common::SeekableReadStream *in, uint16 decompOffset) {
+	// Save the current position
+	uint32 basePos = in->pos();
+
+	dataOffset = in->readUint32LE();
+	//warning("frame, dataofs: 0x%04x %d", dataOffset, dataOffset);
+	uint32 unknown = in->readUint32LE();
+	//warning("frame, unk1: 0x%04x %d", unknown, unknown);
+	palOffset = in->readUint32LE();
+	//warning("frame, palofs: 0x%04x %d", palOffset, palOffset);
+	xPos1 = in->readUint32LE();
+	//warning("frame, xpos1: 0x%04x %d", xPos1, xPos1);
+	yPos1 = in->readUint32LE();
+	//warning("frame, ypos1: 0x%04x %d", yPos1, yPos1);
+	xPos2 = in->readUint32LE();
+	//warning("frame, xpos2: 0x%04x %d", xPos2, xPos2);
+	yPos2 = in->readUint32LE();
+	//warning("frame, ypos2: 0x%04x %d", yPos2, yPos2);
+	initialSkip = in->readUint32LE();
+	//warning("frame, initialskip: 0x%04x %d", initialSkip, initialSkip);
+	decompSize = in->readUint32LE();
+	//warning("frame, decompsize: 0x%04x %d", decompSize, decompSize);
+
+	// Read the compression type
+	in->seek(basePos + decompOffset);
+	compType = in->readByte();
+	//warning("frame, comptype: 0x%04x %d", compType, compType);
+
+	/*
+	unknown = in->readUint32LE();
+	//warning("frame, val 0: 0x%04x %d", unknown, unknown);
+	unknown = in->readUint32LE();
+	//warning("frame, val 1: 0x%04x %d", unknown, unknown);
+	compType = in->readByte();
+	//warning("frame, comptype: 0x%04x %d", compType, compType);
+	unknown = in->readByte();
+	//warning("frame, val 2: 0x%04x %d", unknown, unknown);
+	unknown = in->readUint16LE();
+	//warning("frame, val 2: 0x%04x %d", unknown, unknown);
+
+	// decomp?
+	for (int i = 3; i < 8; i++) {
+		unknown = in->readUint32LE();
+		//warning("frame, val %d: 0x%04x %d", n, i, unknown, unknown);
+		if (i == 5 || i == 7)
+			assert (unknown == 0);
+	}
+	*/
+}
+
 // AnimFrame
 
 AnimFrame::AnimFrame(Common::SeekableReadStream *in, FrameInfo *f) : _palette(NULL) {
@@ -53,6 +103,9 @@ AnimFrame::AnimFrame(Common::SeekableReadStream *in, FrameInfo *f) : _palette(NU
 		break;
 	case 7:
 		decomp7(in, f);
+		break;
+	case 255:
+		decompFF(in, f);
 		break;
 	default:
 		error("Unknown compression: %d", f->compType);
@@ -147,8 +200,6 @@ void AnimFrame::decomp5(Common::SeekableReadStream *in, FrameInfo *f) {
 	//assert (f->yPos1 == skip / 640);
 	//assert (f->yPos2 == size / 640);
 
-	//uint32 numBlanks = 640 - (f->xPos2 - f->xPos1);
-
 	in->seek(f->dataOffset);
 	for (uint32 out = skip; out < size; ) {
 		uint16 opcode = in->readByte();
@@ -227,6 +278,47 @@ void AnimFrame::decomp7(Common::SeekableReadStream *in, FrameInfo *f) {
 	}
 }
 
+void AnimFrame::decompFF(Common::SeekableReadStream *in, FrameInfo *f) {
+	byte *p = (byte *)_image.getBasePtr(0, 0);
+
+	uint32 skip = f->initialSkip / 2;
+	uint32 size = f->decompSize / 2;
+
+	in->seek(f->dataOffset);
+	for (uint32 out = skip; out < size; ) {
+		uint16 opcode = in->readByte();
+
+		if (opcode < 0x80) {
+			if (_palSize <= opcode)
+				_palSize = opcode + 1;
+			// set the given value
+			p[out] = opcode;
+			out++;
+		} else {
+			if (opcode < 0xf0) {
+				if (opcode < 0xe0) {
+					// copy old part
+					uint32 old = out + ((opcode & 0x7) << 8) + in->readByte() - 2048;
+					opcode = ((opcode >> 3) & 0xf) + 3;
+					for (int i = 0; i < opcode; i++, out++, old++) {
+						p[out] = p[old];
+					}
+				} else {
+					opcode = (opcode & 0xf) + 1;
+					byte value = in->readByte();
+					if (_palSize <= value)
+						_palSize = value + 1;
+					for (int i = 0; i < opcode; i++, out++) {
+						p[out] = value;
+					}
+				}
+			} else {
+				out += ((opcode & 0xf) << 8) + in->readByte();
+			}
+		}
+	}
+}
+
 
 // Seq
 
@@ -249,44 +341,8 @@ bool Seq::load(Common::SeekableReadStream *in) {
 
 	for (uint n = 0; n < numFrames; n++) {
 		FrameInfo f;
-		f.dataOffset = in->readUint32LE();
-		//warning("frame %d dataofs: 0x%04x %d", n, f.dataOffset, f.dataOffset);
-		unknown = in->readUint32LE();
-		//warning("frame %d unk1: 0x%04x %d", n, unknown, unknown);
-		f.palOffset = in->readUint32LE();
-		//warning("frame %d palofs: 0x%04x %d", n, f.palOffset, f.palOffset);
-		f.xPos1 = in->readUint32LE();
-		//warning("frame %d xpos1: 0x%04x %d", n, f.xPos1, f.xPos1);
-		f.yPos1 = in->readUint32LE();
-		//warning("frame %d ypos1: 0x%04x %d", n, f.yPos1, f.yPos1);
-		f.xPos2 = in->readUint32LE();
-		//warning("frame %d xpos2: 0x%04x %d", n, f.xPos2, f.xPos2);
-		f.yPos2 = in->readUint32LE();
-		//warning("frame %d ypos2: 0x%04x %d", n, f.yPos2, f.yPos2);
-		f.initialSkip = in->readUint32LE();
-		//warning("frame %d initialskip: 0x%04x %d", n, f.initialSkip, f.initialSkip);
-		f.decompSize = in->readUint32LE();
-		//warning("frame %d decompsize: 0x%04x %d", n, f.decompSize, f.decompSize);
-
-		unknown = in->readUint32LE();
-		//warning("frame %d val 0: 0x%04x %d", n, unknown, unknown);
-		unknown = in->readUint32LE();
-		//warning("frame %d val 1: 0x%04x %d", n, unknown, unknown);
-		f.compType = in->readByte();
-		//warning("frame %d comptype: 0x%04x %d", n, f.compType, f.compType);
-		unknown = in->readByte();
-		//warning("frame %d val 2: 0x%04x %d", n, unknown, unknown);
-		unknown = in->readUint16LE();
-		//warning("frame %d val 2: 0x%04x %d", n, unknown, unknown);
-
-		// decomp?
-		for (int i = 3; i < 8; i++) {
-			unknown = in->readUint32LE();
-			//warning("frame %d val %d: 0x%04x %d", n, i, unknown, unknown);
-			if (i == 5 || i == 7)
-				assert (unknown == 0);
-		}
-
+		in->seek(8 + 0x44 * n);
+		f.read(in, 0x2c);
 		_frames.push_back(f);
 	}
 

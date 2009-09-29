@@ -7,6 +7,7 @@ MODULE_OBJS = \
 	express.o \
 	font.o \
 	hpf.o \
+	nis.o \
 	sbe.o \
 	seq.o \
 	snd.o

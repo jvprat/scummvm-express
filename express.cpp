@@ -28,6 +28,7 @@
 #include "engines/express/cursor.h"
 #include "engines/express/debug.h"
 #include "engines/express/font.h"
+#include "engines/express/nis.h"
 #include "engines/express/sbe.h"
 #include "engines/express/seq.h"
 #include "engines/express/snd.h"
@@ -72,17 +73,18 @@ Common::Error ExpressEngine::run() {
 	int num_bg = cd.listMatchingMembers(list_bg, "*.BG");
 	warning("found %d bg's", num_bg);
 	Common::ArchiveMemberList::iterator i_bg = list_bg.begin();
-	//for (; i != list.end(); i++) {
-		//warning("bg: %s", (*i)->getName().c_str());
-		//Common::SeekableReadStream *stream = (*i)->createReadStream();
-		//BackGround bg(stream);
-		//delete stream;
-	//}
 
+	// Test SEQ
 	Common::ArchiveMemberList list_seq;
 	int n_seq = cd.listMatchingMembers(list_seq, "*.SEQ");
 	warning("found %d seq's", n_seq);
 	Common::ArchiveMemberList::iterator i_seq = list_seq.begin();
+
+	// Test NIS
+	Common::ArchiveMemberList list_nis;
+	int n_nis = cd.listMatchingMembers(list_nis, "*.NIS");
+	warning("found %d nis's", n_nis);
+	Common::ArchiveMemberList::iterator i_nis = list_nis.begin();
 
 	ExpressCursorMan cur(_system, &_hpf);
 	uint8 st = 0;
@@ -118,21 +120,29 @@ Common::Error ExpressEngine::run() {
 					cur.setStyle(--st);
 				if (ev.kbd.keycode == Common::KEYCODE_RETURN) {
 					Common::SeekableReadStream *stream;
-					warning("bg: %s", (*i_bg)->getName().c_str());
-					stream = (*i_bg)->createReadStream();
-					if (stream) {
+					if (i_bg != list_bg.end()) {
+						warning("bg: %s", (*i_bg)->getName().c_str());
+						stream = (*i_bg)->createReadStream();
 						BackGround bg(stream);
 						bg.show();
 						delete stream;
 						i_bg++;
 					}
 
-					warning("seq: %s", (*i_seq)->getName().c_str());
-					stream = (*i_seq)->createReadStream();
-					if (stream) {
+					if (i_seq != list_seq.end()) {
+						warning("seq: %s", (*i_seq)->getName().c_str());
+						stream = (*i_seq)->createReadStream();
 						Seq seq(stream);
 						delete stream;
 						i_seq++;
+					}
+
+					if (i_nis != list_nis.end()) {
+						warning("nis: %s", (*i_nis)->getName().c_str());
+						stream = (*i_nis)->createReadStream();
+						Nis nis(stream);
+						delete stream;
+						i_nis++;
 					}
 				}
 			}

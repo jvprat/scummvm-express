@@ -33,6 +33,8 @@
 namespace Express {
 
 struct FrameInfo {
+	void read(Common::SeekableReadStream *in, uint16 decompOffset);
+
 	uint32 dataOffset;
 	uint32 palOffset;
 	uint32 xPos1;
@@ -57,6 +59,7 @@ private:
 	void decomp34(Common::SeekableReadStream *in, FrameInfo *f, byte mask, byte shift);
 	void decomp5(Common::SeekableReadStream *in, FrameInfo *f);
 	void decomp7(Common::SeekableReadStream *in, FrameInfo *f);
+	void decompFF(Common::SeekableReadStream *in, FrameInfo *f);
 	void readPalette(Common::SeekableReadStream *in, FrameInfo *f);
 
 	Graphics::Surface _image;
