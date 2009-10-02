@@ -32,6 +32,7 @@
 namespace Express {
 
 class AnimFrame;
+class AppendableSnd;
 
 struct Chunk {
 	uint16 type;
@@ -47,10 +48,13 @@ public:
 private:
 	bool load(Common::SeekableReadStream *in);
 	void processChunk(Common::SeekableReadStream *in, Chunk *c);
+	AnimFrame *processChunkFrame(Common::SeekableReadStream *in, Chunk *c);
+	void processChunkAudio(Common::SeekableReadStream *in, Chunk *c);
 
 	Common::Array<Chunk> _chunks;
 	AnimFrame *_background1, *_background2;
 	byte _backgroundCurrent;
+	AppendableSnd *_audio;
 };
 
 } // End of Express namespace
