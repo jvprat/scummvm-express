@@ -30,7 +30,8 @@ enum {
 	kExpressDebugAll = 1 << 0,
 	kExpressDebugData = 1 << 1,
 	kExpressDebugCursor = 1 << 2,
-	kExpressDebugUnknown = 1 << 3
+	kExpressDebugSnd = 1 << 3,
+	kExpressDebugUnknown = 1 << 4
 };
 
 #endif // EXPRESS_DEBUG_H
