@@ -39,11 +39,21 @@ public:
 	void drawString(int x, int y, uint16 *str, uint16 length);
 
 private:
+	uint16 getCharGlyph(uint16 c);
+	byte *getGlyphImg(uint16 g);
+	uint8 getGlyphWidth(uint16 g);
 	byte *getCharImg(uint16 c);
+	uint8 getCharWidth(uint16 c);
+	uint16 getStringWidth(Common::String str);
+	uint16 getStringWidth(uint16 *str, uint16 length);
 	void drawChar(int x, int y, uint16 c);
 
 	// Font data
-	byte *_data;
+	uint16 _palette[0x20];
+	uint8 _charMap[0x200];
+	uint16 _numGlyphs;
+	byte *_glyphs;
+	uint8 *_glyphWidths;
 };
 
 } // End of Express namespace
