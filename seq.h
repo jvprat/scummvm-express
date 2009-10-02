@@ -26,7 +26,6 @@
 #ifndef EXPRESS_SEQ_H
 #define EXPRESS_SEQ_H
 
-#include "common/array.h"
 #include "common/stream.h"
 #include "graphics/surface.h"
 

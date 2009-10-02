@@ -26,7 +26,7 @@
 #include "engines/express/seq.h"
 
 #include "common/system.h"
-#include "common/util.h"
+//#include "common/util.h"
 
 // Based on Deniz Oezmen's code: http://oezmen.eu/
 
@@ -38,7 +38,7 @@ void FrameInfo::read(Common::SeekableReadStream *in, uint16 decompOffset) {
 
 	dataOffset = in->readUint32LE();
 	//warning("frame, dataofs: 0x%04x %d", dataOffset, dataOffset);
-	uint32 unknown = in->readUint32LE();
+	/*uint32 unknown =*/ in->readUint32LE();
 	//warning("frame, unk1: 0x%04x %d", unknown, unknown);
 	palOffset = in->readUint32LE();
 	//warning("frame, palofs: 0x%04x %d", palOffset, palOffset);
