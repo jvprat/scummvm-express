@@ -26,11 +26,7 @@
 #include "engines/express/snd.h"
 #include "engines/express/debug.h"
 
-#include "common/debug.h"
-#include "common/util.h"
-#include "common/system.h"
 #include "sound/adpcm.h"
-#include "sound/mixer.h"
 #include "sound/audiostream.h"
 
 // Based on the Xentax Wiki documentation:
@@ -38,22 +34,100 @@
 
 namespace Express {
 
-Snd::Snd(Common::SeekableReadStream *in) {
-	uint32 size = in->readUint32LE();
-	uint16 blocks = in->readUint16LE();
-	warning("size=%d blocks=%d", size, blocks);
+// Snd
 
-	assert (size % blocks == 0);
-	uint32 blockSize = size / blocks;
-
-	Audio::AudioStream *as = Audio::makeADPCMStream(in,
-		true, size, Audio::kADPCMMSIma, 44100, 1, blockSize);
-
-	Audio::SoundHandle handle;
-	g_system->getMixer()->playInputStream(Audio::Mixer::kPlainSoundType, &handle, as);
+Snd::Snd() {
 }
 
 Snd::~Snd() {
+	// Stop the sound
+	g_system->getMixer()->stopHandle(_handle);
+}
+
+void Snd::loadHeader(Common::SeekableReadStream *in) {
+	_size = in->readUint32LE();
+	_blocks = in->readUint16LE();
+	debugC(5, kExpressDebugSnd, "Express::Snd: Sound header data: size=\"%d\", %d blocks", _size, _blocks);
+
+	assert (_size % _blocks == 0);
+	_blockSize = _size / _blocks;
+}
+
+Audio::AudioStream *Snd::makeDecoder(Common::SeekableReadStream *in, uint32 size) const {
+	return Audio::makeADPCMStream(in, true, size, Audio::kADPCMMSIma, 44100, 1, _blockSize);
+}
+
+void Snd::play(Audio::AudioStream *as) {
+	g_system->getMixer()->playInputStream(Audio::Mixer::kPlainSoundType, &_handle, as);
+}
+
+
+// StreamedSnd
+
+StreamedSnd::StreamedSnd() {
+}
+
+StreamedSnd::~StreamedSnd() {
+}
+
+void StreamedSnd::load(Common::SeekableReadStream *in) {
+	loadHeader(in);
+
+	// Start decoding the input stream
+	Audio::AudioStream *as = makeDecoder(in, _size);
+
+	// Start playing the decoded audio stream
+	play(as);
+}
+
+
+// AppendableSnd
+
+AppendableSnd::AppendableSnd() : Snd() {
+	// Create an audio stream where the decoded chunks will be appended
+	// TODO: the ADPCM decoder works in native endianness, so the usage FLAG_LITTLE_ENDIAN will depend on the current platform
+	_as = Audio::makeAppendableAudioStream(44100, Audio::Mixer::FLAG_16BITS | Audio::Mixer::FLAG_AUTOFREE | Audio::Mixer::FLAG_LITTLE_ENDIAN);
+
+	// Start playing the decoded audio stream
+	play(_as);
+
+	// Initialize the block size
+	// TODO: get it as an argument?
+	_blockSize = 739;
+}
+
+AppendableSnd::~AppendableSnd() {
+	finish();
+}
+
+void AppendableSnd::queueBuffer(byte *data, uint32 size) {
+	Common::MemoryReadStream *buffer = new Common::MemoryReadStream(data, size);
+	queueBuffer(buffer);
+}
+
+void AppendableSnd::queueBuffer(Common::SeekableReadStream *bufferIn) {
+	assert (_as);
+
+	// Setup the ADPCM decoder
+	uint32 sizeIn = bufferIn->size();
+	Audio::AudioStream *adpcm = makeDecoder(bufferIn, sizeIn);
+
+	// Setup the output buffer
+	uint32 sizeOut = sizeIn * 2;
+	byte *bufferOut = new byte[sizeOut * 2];
+
+	// Decode to raw samples
+	sizeOut = adpcm->readBuffer((int16 *)bufferOut, sizeOut);
+	assert (adpcm->endOfData());
+	delete adpcm;
+
+	// Queue the decoded samples
+	_as->queueBuffer(bufferOut, sizeOut * 2);
+}
+
+void AppendableSnd::finish() {
+	assert (_as);
+	_as->finish();
 }
 
 } // End of Express namespace

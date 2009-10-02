@@ -27,13 +27,50 @@
 #define EXPRESS_SND_H
 
 #include "common/stream.h"
+#include "sound/mixer.h"
+
+namespace Audio {
+class AudioStream;
+class AppendableAudioStream;
+}
 
 namespace Express {
 
 class Snd {
 public:
-	Snd(Common::SeekableReadStream *in);
-	~Snd();
+	Snd();
+	virtual ~Snd();
+
+protected:
+	void loadHeader(Common::SeekableReadStream *in);
+	Audio::AudioStream *makeDecoder(Common::SeekableReadStream *in, uint32 size) const;
+	void play(Audio::AudioStream *as);
+
+	uint32 _size;
+	uint16 _blocks;
+	uint32 _blockSize;
+	Audio::SoundHandle _handle;
+};
+
+class StreamedSnd : public Snd {
+public:
+	StreamedSnd();
+	~StreamedSnd();
+
+	void load(Common::SeekableReadStream *in);
+};
+
+class AppendableSnd : public Snd {
+public:
+	AppendableSnd();
+	~AppendableSnd();
+
+	void queueBuffer(byte *data, uint32 size);
+	void queueBuffer(Common::SeekableReadStream *bufferIn);
+	void finish();
+
+private:
+	Audio::AppendableAudioStream *_as;
 };
 
 } // End of Express namespace
