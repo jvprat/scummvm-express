@@ -101,7 +101,8 @@ Common::Error ExpressEngine::run() {
 	g_system->updateScreen();
 
 	Common::SeekableReadStream *snd = _hpf.createReadStreamForMember("MUS018.SND");
-	//Snd s(snd);
+	//StreamedSnd s;
+	//s.load(snd);
 	//int num = cd.listMatchingMembers(list, "*.SND");
 	//warning("found %d files", num);
 	//Common::ArchiveMemberList::iterator i = list.begin();
